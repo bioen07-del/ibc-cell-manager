@@ -702,7 +702,7 @@ export const CulturesPage: React.FC = () => {
 
   const filteredCultures = (cultures || []).filter(culture => {
     const donor = safeDonors.find(d => d.id === culture.donorId);
-    const matchesSearch = culture.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchesSearch = String(culture.id).includes(searchQuery.toLowerCase()) ||
                          donor?.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          culture.cellType.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || culture.status === statusFilter;

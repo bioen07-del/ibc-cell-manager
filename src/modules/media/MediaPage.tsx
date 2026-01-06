@@ -282,7 +282,7 @@ export const MediaPage: React.FC = () => {
   const filteredMedia = useMemo(() => {
     return (media || []).filter(m => {
       const matchesSearch = m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        m.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        String(m.id).includes(searchQuery.toLowerCase()) ||
         m.lotNumber.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory = categoryFilter === 'all' || m.category === categoryFilter;
       const matchesStatus = statusFilter === 'all' || 

@@ -110,8 +110,8 @@ export const DisposalsPage: React.FC = () => {
   };
 
   const filteredDisposals = (disposals || []).filter(d => {
-    const matchesSearch = d.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      d.objectId.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = String(d.id).includes(searchQuery.toLowerCase()) ||
+      String(d.objectId).includes(searchQuery.toLowerCase());
     const matchesType = typeFilter === 'all' || d.objectType === typeFilter;
     return matchesSearch && matchesType;
   });

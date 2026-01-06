@@ -250,9 +250,9 @@ export const TasksPage: React.FC = () => {
   });
 
   const filteredTasks = (tasks || []).filter(task => {
-    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         task.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         task.id.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (task.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (task.description || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         String(task.id).includes(searchQuery.toLowerCase());
     // "active" = new, in_progress, overdue
     const matchesStatus = statusFilter === 'all' ? true : 
                           statusFilter === 'active' ? ['new', 'in_progress', 'overdue'].includes(task.status) :

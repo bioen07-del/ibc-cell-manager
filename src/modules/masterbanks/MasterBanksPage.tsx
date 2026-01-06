@@ -181,7 +181,7 @@ export const MasterBanksPage: React.FC = () => {
   };
 
   const filteredBanks = (masterBanks || []).filter(mb =>
-    mb.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    String(mb.id).includes(searchQuery.toLowerCase()) ||
     mb.cellType.toLowerCase().includes(searchQuery.toLowerCase())
   );
 

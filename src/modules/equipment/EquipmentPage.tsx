@@ -191,7 +191,7 @@ export const EquipmentPage: React.FC = () => {
   };
 
   const filteredEquipment = (equipment || []).filter(e => {
-    const matchesSearch = e.name.toLowerCase().includes(searchQuery.toLowerCase()) || e.id.toLowerCase().includes(searchQuery.toLowerCase()) || e.serialNumber.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (e.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || String(e.id).includes(searchQuery.toLowerCase()) || (e.serialNumber || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || e.status === statusFilter;
     return matchesSearch && matchesStatus;
   });

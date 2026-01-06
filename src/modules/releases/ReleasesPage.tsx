@@ -107,9 +107,9 @@ export const ReleasesPage: React.FC = () => {
   };
 
   const filteredReleases = (releases || []).filter(r => {
-    const matchesSearch = r.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.recipientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.sourceId.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = String(r.id).includes(searchQuery.toLowerCase()) ||
+      (r.recipientName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      String(r.sourceId).includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || r.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
