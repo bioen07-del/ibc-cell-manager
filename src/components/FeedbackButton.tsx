@@ -5,8 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 
 // Версия приложения
-export const APP_VERSION = '0.04';
-export const BUILD_DATE = '2026-01-04';
+export const APP_VERSION = '0.05';
+export const BUILD_DATE = '2026-01-06';
 
 const FeedbackButton: React.FC = () => {
   const { user } = useAuth();
