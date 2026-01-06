@@ -21,6 +21,8 @@ export const CulturesPage: React.FC = () => {
   const safeMedia = media || [];
   const safeCultures = cultures || [];
   const safeTasks = tasks || [];
+  const safeManipulations = manipulations || [];
+  const safeContainerTypes = containerTypes || [];
   
   const incubators = (equipment || []).filter((e: any) => (e.equipmentType || e.type) === 'incubator' && e.status === 'active');
   const approvedMedia = safeMedia.filter((m: any) => m.status === 'approved' && (m.remaining_volume || (m.remaining_volume || 0) || 0) > 0 && new Date(m.expiry_date || m.expiryDate) > new Date());
@@ -718,7 +720,7 @@ export const CulturesPage: React.FC = () => {
   ];
 
   const getCultureManipulations = (cultureId: string) => {
-    return manipulations.filter(m => m.targetId === cultureId).sort((a, b) => 
+    return safeManipulations.filter(m => m.targetId === cultureId).sort((a, b) => 
       new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()
     );
   };
@@ -924,7 +926,7 @@ export const CulturesPage: React.FC = () => {
                   <Button size="sm" variant="secondary" onClick={() => {
                     const donation = safeDonations.find(d => d.id === culture.donationId) || { id: '', materialType: culture.cellType, dateTime: culture.createdAt } as any;
                     const parentCulture = safeCultures.find(c => c.id === culture.parentCultureId);
-                    const cultureManipulations = manipulations.filter(m => m.targetId === culture.id);
+                    const cultureManipulations = safeManipulations.filter(m => m.targetId === culture.id);
                     generateCulturePassport(culture, donor!, donation, parentCulture, cultureManipulations);
                   }}>
                     <FileText className="w-3 h-3" /> Паспорт
@@ -1381,7 +1383,7 @@ export const CulturesPage: React.FC = () => {
                             updated[idx] = { ...updated[idx], type: e.target.value };
                             setManipFormData({ ...manipFormData, passageContainers: updated });
                           }}
-                          options={containerTypes.filter(c => c.is_active).map(c => ({ value: c.name, label: c.name }))}
+                          options={safeContainerTypes.filter(c => c.is_active).map(c => ({ value: c.name, label: c.name }))}
                         />
                         <Input
                           className="w-20"
@@ -1485,7 +1487,7 @@ export const CulturesPage: React.FC = () => {
                   }}
                   options={[
                     { value: '', label: 'Выберите криопробирку' },
-                    ...containerTypes.filter(c => c.is_active && c.category === 'cryotube').map(c => ({ value: c.name, label: c.name }))
+                    ...safeContainerTypes.filter(c => c.is_active && c.category === 'cryotube').map(c => ({ value: c.name, label: c.name }))
                   ]}
                 />
                 <Input
