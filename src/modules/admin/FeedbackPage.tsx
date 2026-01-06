@@ -1,60 +1,31 @@
 // @ts-nocheck
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
-import { Bug, Lightbulb, Wrench, Clock, CheckCircle, XCircle, Eye, MessageSquare, Image } from 'lucide-react';
-
-interface Feedback {
-  id: number;
-  user_id: string;
-  user_name: string;
-  type: string;
-  title: string;
-  description: string;
-  screenshot_url: string;
-  status: string;
-  admin_comment: string;
-  created_at: string;
-}
+import React, { useState } from 'react';
+import { useApp, Feedback } from '../../context/AppContext';
+import { Bug, Lightbulb, Wrench, Clock, CheckCircle, XCircle, Eye, MessageSquare, Image, Inbox } from 'lucide-react';
+import { APP_VERSION, BUILD_DATE } from '../../components/FeedbackButton';
 
 const FeedbackPage: React.FC = () => {
-  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { feedbacks, updateFeedback } = useApp();
   const [selectedFeedback, setSelectedFeedback] = useState<Feedback | null>(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [adminComment, setAdminComment] = useState('');
 
-  useEffect(() => {
-    loadFeedbacks();
-  }, []);
-
-  const loadFeedbacks = async () => {
-    const { data } = await supabase
-      .from('feedback')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (data) setFeedbacks(data);
-    setLoading(false);
-  };
-
-  const updateStatus = async (id: number, status: string, comment?: string) => {
-    await supabase.from('feedback').update({
-      status,
-      admin_comment: comment || null,
-      updated_at: new Date().toISOString()
-    }).eq('id', id);
-    
-    setFeedbacks(prev => prev.map(f => f.id === id ? { ...f, status, admin_comment: comment || f.admin_comment } : f));
+  const handleUpdateStatus = (id: number, status: string, comment?: string) => {
+    updateFeedback(id, {
+      status: status as any,
+      admin_comment: comment || undefined
+    });
     setSelectedFeedback(null);
     setAdminComment('');
   };
 
-  const typeIcons = {
+  const typeIcons: Record<string, { icon: any; color: string; bg: string; label: string }> = {
     bug: { icon: Bug, color: 'text-red-500', bg: 'bg-red-100', label: 'Ошибка' },
     feature: { icon: Lightbulb, color: 'text-yellow-500', bg: 'bg-yellow-100', label: 'Новая функция' },
     improvement: { icon: Wrench, color: 'text-blue-500', bg: 'bg-blue-100', label: 'Улучшение' }
   };
 
-  const statusBadges = {
+  const statusBadges: Record<string, { color: string; label: string }> = {
     new: { color: 'bg-blue-100 text-blue-700', label: 'Новое' },
     reviewed: { color: 'bg-purple-100 text-purple-700', label: 'Рассмотрено' },
     in_progress: { color: 'bg-yellow-100 text-yellow-700', label: 'В работе' },
@@ -66,19 +37,27 @@ const FeedbackPage: React.FC = () => {
     statusFilter === 'all' || f.status === statusFilter
   );
 
-  if (loading) return <div className="p-8 text-center">Загрузка...</div>;
+  const newCount = feedbacks.filter(f => f.status === 'new').length;
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">Обратная связь</h1>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <MessageSquare className="w-7 h-7 text-purple-600" />
+            Обратная связь
+          </h1>
           <p className="text-gray-500">Баги и предложения от пользователей</p>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-500">
-            Новых: {feedbacks.filter(f => f.status === 'new').length}
-          </span>
+          <div className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded">
+            v{APP_VERSION} • {BUILD_DATE}
+          </div>
+          {newCount > 0 && (
+            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+              {newCount} новых
+            </span>
+          )}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -95,9 +74,10 @@ const FeedbackPage: React.FC = () => {
       </div>
 
       {filteredFeedbacks.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
-          <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>Нет обращений</p>
+        <div className="text-center py-16 bg-white rounded-xl border">
+          <Inbox className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+          <h3 className="text-lg font-medium text-gray-600">Нет обращений</h3>
+          <p className="text-gray-400 mt-1">Пользователи ещё не отправляли отзывы</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -107,23 +87,27 @@ const FeedbackPage: React.FC = () => {
             const statusInfo = statusBadges[feedback.status] || statusBadges.new;
 
             return (
-              <div key={feedback.id} className="bg-white rounded-lg shadow border p-4">
+              <div key={feedback.id} className="bg-white rounded-lg shadow border p-4 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-3">
                     <div className={`p-2 rounded-lg ${typeInfo.bg}`}>
                       <TypeIcon className={`w-5 h-5 ${typeInfo.color}`} />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <h3 className="font-semibold">{feedback.title}</h3>
                         <span className={`px-2 py-0.5 rounded text-xs ${statusInfo.color}`}>
                           {statusInfo.label}
                         </span>
                         {feedback.screenshot_url && (
-                          <Image className="w-4 h-4 text-gray-400" />
+                          <span className="flex items-center gap-1 text-xs text-gray-400">
+                            <Image className="w-3 h-3" /> Скриншот
+                          </span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-600 mb-2">{feedback.description}</p>
+                      {feedback.description && (
+                        <p className="text-sm text-gray-600 mb-2 line-clamp-2">{feedback.description}</p>
+                      )}
                       <div className="flex items-center gap-4 text-xs text-gray-400">
                         <span>{feedback.user_name || 'Аноним'}</span>
                         <span className="flex items-center gap-1">
@@ -135,15 +119,16 @@ const FeedbackPage: React.FC = () => {
                         </span>
                       </div>
                       {feedback.admin_comment && (
-                        <div className="mt-2 p-2 bg-gray-50 rounded text-sm">
-                          <span className="font-medium">Комментарий:</span> {feedback.admin_comment}
+                        <div className="mt-2 p-2 bg-gray-50 rounded text-sm border-l-2 border-purple-400">
+                          <span className="font-medium text-purple-700">Ответ:</span> {feedback.admin_comment}
                         </div>
                       )}
                     </div>
                   </div>
                   <button
-                    onClick={() => setSelectedFeedback(feedback)}
+                    onClick={() => { setSelectedFeedback(feedback); setAdminComment(feedback.admin_comment || ''); }}
                     className="p-2 hover:bg-gray-100 rounded"
+                    title="Подробнее"
                   >
                     <Eye className="w-5 h-5 text-gray-500" />
                   </button>
@@ -159,9 +144,16 @@ const FeedbackPage: React.FC = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-4 border-b">
-              <h2 className="text-xl font-bold">{selectedFeedback.title}</h2>
-              <p className="text-sm text-gray-500">
-                От: {selectedFeedback.user_name} • {new Date(selectedFeedback.created_at).toLocaleString('ru')}
+              <div className="flex items-center gap-2">
+                {(() => {
+                  const typeInfo = typeIcons[selectedFeedback.type] || typeIcons.bug;
+                  const TypeIcon = typeInfo.icon;
+                  return <TypeIcon className={`w-5 h-5 ${typeInfo.color}`} />;
+                })()}
+                <h2 className="text-xl font-bold">{selectedFeedback.title}</h2>
+              </div>
+              <p className="text-sm text-gray-500 mt-1">
+                От: {selectedFeedback.user_name || 'Аноним'} • {new Date(selectedFeedback.created_at).toLocaleString('ru')}
               </p>
             </div>
             <div className="p-4 space-y-4">
@@ -184,7 +176,7 @@ const FeedbackPage: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium mb-1">Комментарий администратора</label>
                 <textarea
-                  value={adminComment || selectedFeedback.admin_comment || ''}
+                  value={adminComment}
                   onChange={(e) => setAdminComment(e.target.value)}
                   className="w-full p-2 border rounded"
                   rows={2}
@@ -196,26 +188,26 @@ const FeedbackPage: React.FC = () => {
                 <label className="block text-sm font-medium mb-2">Изменить статус</label>
                 <div className="flex flex-wrap gap-2">
                   <button
-                    onClick={() => updateStatus(selectedFeedback.id, 'reviewed', adminComment)}
+                    onClick={() => handleUpdateStatus(selectedFeedback.id, 'reviewed', adminComment)}
                     className="px-3 py-1.5 bg-purple-100 text-purple-700 rounded hover:bg-purple-200"
                   >
                     Рассмотрено
                   </button>
                   <button
-                    onClick={() => updateStatus(selectedFeedback.id, 'in_progress', adminComment)}
+                    onClick={() => handleUpdateStatus(selectedFeedback.id, 'in_progress', adminComment)}
                     className="px-3 py-1.5 bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200"
                   >
                     В работе
                   </button>
                   <button
-                    onClick={() => updateStatus(selectedFeedback.id, 'resolved', adminComment)}
+                    onClick={() => handleUpdateStatus(selectedFeedback.id, 'resolved', adminComment)}
                     className="px-3 py-1.5 bg-green-100 text-green-700 rounded hover:bg-green-200 flex items-center gap-1"
                   >
                     <CheckCircle className="w-4 h-4" />
                     Решено
                   </button>
                   <button
-                    onClick={() => updateStatus(selectedFeedback.id, 'rejected', adminComment)}
+                    onClick={() => handleUpdateStatus(selectedFeedback.id, 'rejected', adminComment)}
                     className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center gap-1"
                   >
                     <XCircle className="w-4 h-4" />

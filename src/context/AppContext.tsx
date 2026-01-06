@@ -192,6 +192,20 @@ export interface AutoTaskRule {
   updated_at: string;
 }
 
+export interface Feedback {
+  id: number;
+  user_id?: string;
+  user_name?: string;
+  type: 'bug' | 'feature' | 'improvement';
+  title: string;
+  description?: string;
+  screenshot_url?: string;
+  status: 'new' | 'reviewed' | 'in_progress' | 'resolved' | 'rejected';
+  admin_comment?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // ===== ЛОКАЛЬНОЕ ХРАНИЛИЩЕ =====
 const STORAGE_KEY = 'ibc_cell_manager_data';
 
@@ -208,6 +222,7 @@ interface StorageData {
   masterBanks: MasterBank[];
   auditLogs: AuditLog[];
   autoTaskRules: AutoTaskRule[];
+  feedbacks: Feedback[];
   nextIds: { [key: string]: number };
 }
 
@@ -289,6 +304,83 @@ const getDefaultData = (): StorageData => ({
       is_latest: true,
       created_at: now(),
       updated_at: now()
+    },
+    {
+      id: 4,
+      code: 'SOP-004',
+      name: 'Выделение мононуклеаров на градиенте фиколла',
+      category: 'isolation',
+      manipulation_type: 'primary_processing',
+      version: '1.0',
+      description: 'Протокол выделения мононуклеарных клеток (PBMC) из периферической крови методом градиентного центрифугирования на Ficoll-Paque',
+      duration_minutes: 120,
+      steps: [
+        { step: 1, title: 'Подготовка материалов', description: 'Подготовить фиколл (плотность 1.077), PBS, пробирки 50мл, пипетки', duration: 10, checkpoint: false },
+        { step: 2, title: 'Разведение крови', description: 'Развести кровь PBS в соотношении 1:1', duration: 5, checkpoint: true },
+        { step: 3, title: 'Наслоение на фиколл', description: 'Аккуратно наслоить разведённую кровь на фиколл (соотношение кровь:фиколл = 2:1)', duration: 10, checkpoint: true },
+        { step: 4, title: 'Центрифугирование', description: 'Центрифугировать 30 мин при 400g без торможения', duration: 35, checkpoint: true },
+        { step: 5, title: 'Сбор интерфейса', description: 'Собрать кольцо мононуклеаров на границе фаз', duration: 10, checkpoint: true },
+        { step: 6, title: 'Отмывка 1', description: 'Добавить PBS, центрифугировать 10 мин при 300g', duration: 15, checkpoint: false },
+        { step: 7, title: 'Отмывка 2', description: 'Повторная отмывка PBS, центрифугирование 10 мин при 200g', duration: 15, checkpoint: false },
+        { step: 8, title: 'Подсчёт клеток', description: 'Ресуспендировать в PBS, подсчитать клетки, оценить жизнеспособность', duration: 15, checkpoint: true },
+        { step: 9, title: 'Документирование', description: 'Записать выход клеток, жизнеспособность, примечания', duration: 5, checkpoint: false }
+      ],
+      safety_notes: 'Работать с кровью в защитных перчатках и очках. Соблюдать правила биобезопасности.',
+      status: 'active',
+      is_latest: true,
+      created_at: now(),
+      updated_at: now()
+    },
+    {
+      id: 5,
+      code: 'SOP-005',
+      name: 'Получение макрофагов из мононуклеаров',
+      category: 'differentiation',
+      manipulation_type: 'primary_processing',
+      version: '1.0',
+      description: 'Протокол дифференцировки моноцитов в макрофаги методом адгезии и стимуляции M-CSF',
+      duration_minutes: 180,
+      steps: [
+        { step: 1, title: 'Подготовка среды', description: 'Приготовить полную среду RPMI-1640 с 10% FBS, L-глутамином и антибиотиками', duration: 10, checkpoint: true },
+        { step: 2, title: 'Посев мононуклеаров', description: 'Посеять PBMC в концентрации 2×10⁶/мл на культуральные чашки', duration: 15, checkpoint: true },
+        { step: 3, title: 'Адгезия моноцитов', description: 'Инкубировать 2-3 часа при 37°C для прикрепления моноцитов', duration: 180, checkpoint: true },
+        { step: 4, title: 'Удаление неприлипших', description: 'Осторожно удалить суспензию с неприлипшими клетками, промыть PBS', duration: 10, checkpoint: false },
+        { step: 5, title: 'Добавление дифференцировочной среды', description: 'Добавить среду с M-CSF (50 нг/мл) или GM-CSF', duration: 5, checkpoint: true },
+        { step: 6, title: 'Культивирование', description: 'Инкубировать 5-7 дней, меняя среду каждые 2-3 дня', duration: 10, checkpoint: false },
+        { step: 7, title: 'Оценка дифференцировки', description: 'Оценить морфологию макрофагов под микроскопом, при необходимости провести фенотипирование', duration: 20, checkpoint: true },
+        { step: 8, title: 'Документирование', description: 'Записать характеристики полученных макрофагов', duration: 10, checkpoint: false }
+      ],
+      safety_notes: 'Цитокины хранить согласно инструкции. Работать в стерильных условиях.',
+      status: 'active',
+      is_latest: true,
+      created_at: now(),
+      updated_at: now()
+    },
+    {
+      id: 6,
+      code: 'SOP-006',
+      name: 'Первичная обработка жировой ткани (SVF)',
+      category: 'isolation',
+      manipulation_type: 'primary_processing',
+      version: '1.0',
+      description: 'Протокол получения стромально-васкулярной фракции (SVF) из липоаспирата ферментативным методом',
+      duration_minutes: 150,
+      steps: [
+        { step: 1, title: 'Промывка липоаспирата', description: 'Промыть липоаспират PBS 3-5 раз до прозрачного супернатанта', duration: 20, checkpoint: true },
+        { step: 2, title: 'Приготовление коллагеназы', description: 'Приготовить раствор коллагеназы I типа (0.1-0.2%)', duration: 10, checkpoint: true },
+        { step: 3, title: 'Ферментация', description: 'Добавить коллагеназу к жировой ткани (1:1), инкубировать 30-60 мин при 37°C с перемешиванием', duration: 60, checkpoint: true },
+        { step: 4, title: 'Нейтрализация', description: 'Добавить равный объём среды с сывороткой', duration: 5, checkpoint: false },
+        { step: 5, title: 'Центрифугирование', description: 'Центрифугировать 10 мин при 300g', duration: 15, checkpoint: true },
+        { step: 6, title: 'Сбор SVF', description: 'Удалить жир и супернатант, собрать клеточный осадок (SVF)', duration: 10, checkpoint: true },
+        { step: 7, title: 'Фильтрация', description: 'Профильтровать через сито 100 мкм', duration: 5, checkpoint: false },
+        { step: 8, title: 'Отмывка', description: 'Отмыть PBS, центрифугировать', duration: 10, checkpoint: false },
+        { step: 9, title: 'Подсчёт и посев', description: 'Подсчитать клетки, оценить жизнеспособность, посеять в культуральную посуду', duration: 15, checkpoint: true }
+      ],
+      safety_notes: 'Коллагеназа — раздражитель. Работать в перчатках. Соблюдать температурный режим инкубации.',
+      status: 'active',
+      is_latest: true,
+      created_at: now(),
+      updated_at: now()
     }
   ],
   sopExecutions: [],
@@ -321,9 +413,10 @@ const getDefaultData = (): StorageData => ({
   masterBanks: [],
   auditLogs: [],
   autoTaskRules: [],
+  feedbacks: [],
   nextIds: {
-    donors: 1, donations: 1, cultures: 1, tasks: 1, sops: 4, sopExecutions: 1,
-    equipment: 6, media: 6, containerTypes: 11, masterBanks: 1, auditLogs: 1, autoTaskRules: 1
+    donors: 1, donations: 1, cultures: 1, tasks: 1, sops: 7, sopExecutions: 1,
+    equipment: 6, media: 6, containerTypes: 11, masterBanks: 1, auditLogs: 1, autoTaskRules: 1, feedbacks: 1
   }
 });
 
@@ -818,6 +911,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setData(prev => ({ ...prev, auditLogs: [newLog, ...prev.auditLogs].slice(0, 100) }));
   }, []);
 
+  // ===== FEEDBACK =====
+  const addFeedback = useCallback((feedbackData: Partial<Feedback>) => {
+    const id = getNextId('feedbacks');
+    const newFeedback: Feedback = {
+      id,
+      type: feedbackData.type || 'bug',
+      title: feedbackData.title || '',
+      description: feedbackData.description,
+      screenshot_url: feedbackData.screenshot_url,
+      user_id: feedbackData.user_id,
+      user_name: feedbackData.user_name,
+      status: 'new',
+      created_at: now(),
+      updated_at: now()
+    };
+    setData(prev => ({ ...prev, feedbacks: [newFeedback, ...prev.feedbacks] }));
+    return newFeedback;
+  }, []);
+
+  const updateFeedback = useCallback((id: number, updates: Partial<Feedback>) => {
+    setData(prev => ({
+      ...prev,
+      feedbacks: prev.feedbacks.map(f => f.id === id ? { ...f, ...updates, updated_at: now() } : f)
+    }));
+  }, []);
+
   const value: AppContextType = useMemo(() => ({
     donors: data.donors,
     donations: data.donations,
@@ -831,6 +950,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     masterBanks: data.masterBanks,
     auditLogs: data.auditLogs,
     autoTaskRules: data.autoTaskRules,
+    feedbacks: data.feedbacks,
     loading,
     refreshData,
     addDonor, updateDonor, deleteDonor, getDonorById,
@@ -843,7 +963,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addContainerType, updateContainerType, deleteContainerType,
     addMasterBank, updateMasterBank,
     addAutoTaskRule, updateAutoTaskRule, deleteAutoTaskRule, triggerAutoTasks,
-    addAuditLog
+    addAuditLog,
+    addFeedback, updateFeedback
   }), [data, loading, refreshData, addDonor, updateDonor, deleteDonor, getDonorById,
     addDonation, updateDonation, deleteDonation,
     addCulture, updateCulture, getCultureById, passageCulture,
@@ -854,7 +975,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addContainerType, updateContainerType, deleteContainerType,
     addMasterBank, updateMasterBank,
     addAutoTaskRule, updateAutoTaskRule, deleteAutoTaskRule, triggerAutoTasks,
-    addAuditLog]);
+    addAuditLog, addFeedback, updateFeedback]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };

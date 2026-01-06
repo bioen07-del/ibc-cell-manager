@@ -23,7 +23,7 @@ export const CulturesPage: React.FC = () => {
   const safeTasks = tasks || [];
   
   const incubators = (equipment || []).filter((e: any) => (e.equipmentType || e.type) === 'incubator' && e.status === 'active');
-  const approvedMedia = safeMedia.filter((m: any) => m.status === 'approved' && (m.remainingVolume || m.remaining_ml) > 0 && new Date(m.expiryDate || m.expiry_date) > new Date());
+  const approvedMedia = safeMedia.filter((m: any) => m.status === 'approved' && (m.remaining_volume || (m.remaining_volume || 0) || 0) > 0 && new Date(m.expiry_date || m.expiryDate) > new Date());
   
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('in_work');
@@ -365,9 +365,9 @@ export const CulturesPage: React.FC = () => {
           if (manipFormData.mediaId && manipFormData.volume) {
             const usedMedia = safeMedia.find(m => m.id === manipFormData.mediaId);
             if (usedMedia) {
-              const newRemaining = Math.max(0, usedMedia.remainingVolume - (parseFloat(manipFormData.volume) || 0));
+              const newRemaining = Math.max(0, (usedMedia.remaining_volume || usedMedia.remainingVolume || 0) - (parseFloat(manipFormData.volume) || 0));
               updateMedia(usedMedia.id, { 
-                remainingVolume: newRemaining,
+                remaining_volume: newRemaining,
                 status: newRemaining === 0 ? 'exhausted' : usedMedia.status
               });
             }
@@ -384,9 +384,9 @@ export const CulturesPage: React.FC = () => {
           Object.entries(mediaUsage).forEach(([mId, vol]) => {
             const usedMedia = safeMedia.find(m => m.id === mId);
             if (usedMedia) {
-              const newRemaining = Math.max(0, usedMedia.remainingVolume - vol);
+              const newRemaining = Math.max(0, (usedMedia.remaining_volume || usedMedia.remainingVolume || 0) - vol);
               updateMedia(usedMedia.id, { 
-                remainingVolume: newRemaining,
+                remaining_volume: newRemaining,
                 status: newRemaining === 0 ? 'exhausted' : usedMedia.status
               });
             }
@@ -408,9 +408,9 @@ export const CulturesPage: React.FC = () => {
         Object.entries(passageMediaUsage).forEach(([mId, vol]) => {
           const usedMedia = safeMedia.find(m => m.id === mId);
           if (usedMedia) {
-            const newRemaining = Math.max(0, usedMedia.remainingVolume - vol);
+            const newRemaining = Math.max(0, (usedMedia.remaining_volume || usedMedia.remainingVolume || 0) - vol);
             updateMedia(usedMedia.id, { 
-              remainingVolume: newRemaining,
+              remaining_volume: newRemaining,
               status: newRemaining === 0 ? 'exhausted' : usedMedia.status
             });
           }
@@ -1193,7 +1193,7 @@ export const CulturesPage: React.FC = () => {
                       { value: '', label: 'Выберите среду' },
                       ...approvedMedia.map(m => ({ 
                         value: m.id, 
-                        label: `${m.name} (${m.lotNumber}) - остаток: ${m.remainingVolume} ${m.unit}` 
+                        label: `${m.name} (${m.lotNumber}) - остаток: ${(m.remaining_volume || 0)} ${m.unit}` 
                       }))
                     ]}
                     required
@@ -1233,7 +1233,7 @@ export const CulturesPage: React.FC = () => {
                           }}
                           options={[
                             { value: '', label: 'Выбрать' },
-                            ...approvedMedia.map(m => ({ value: m.id, label: `${m.name} (${m.remainingVolume} ${m.unit})` }))
+                            ...approvedMedia.map(m => ({ value: m.id, label: `${m.name} (${(m.remaining_volume || 0)} ${m.unit})` }))
                           ]}
                         />
                         <Input
@@ -1412,7 +1412,7 @@ export const CulturesPage: React.FC = () => {
                           }}
                           options={[
                             { value: '', label: 'Выберите среду' },
-                            ...approvedMedia.map(m => ({ value: m.id, label: `${m.name} (${m.remainingVolume} ${m.unit})` }))
+                            ...approvedMedia.map(m => ({ value: m.id, label: `${m.name} (${(m.remaining_volume || 0)} ${m.unit})` }))
                           ]}
                         />
                         <Input

@@ -2,15 +2,19 @@
 import React, { useState } from 'react';
 import { MessageSquarePlus, X, Bug, Lightbulb, Wrench, Upload, Send } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
+import { useApp } from '../context/AppContext';
+
+// Версия приложения
+export const APP_VERSION = '0.04';
+export const BUILD_DATE = '2026-01-04';
 
 const FeedbackButton: React.FC = () => {
   const { user } = useAuth();
+  const { addFeedback } = useApp();
   const [isOpen, setIsOpen] = useState(false);
-  const [sending, setSending] = useState(false);
   const [success, setSuccess] = useState(false);
   const [formData, setFormData] = useState({
-    type: 'bug',
+    type: 'bug' as 'bug' | 'feature' | 'improvement',
     title: '',
     description: '',
     screenshot_url: ''
@@ -22,40 +26,30 @@ const FeedbackButton: React.FC = () => {
     { value: 'improvement', label: 'Улучшение', icon: Wrench, color: 'text-blue-500' }
   ];
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!formData.title.trim()) return;
     
-    setSending(true);
-    try {
-      await supabase.from('feedback').insert({
-        user_id: user?.id,
-        user_name: user?.name,
-        type: formData.type,
-        title: formData.title,
-        description: formData.description,
-        screenshot_url: formData.screenshot_url || null,
-        status: 'new'
-      });
-      
-      setSuccess(true);
-      setTimeout(() => {
-        setIsOpen(false);
-        setSuccess(false);
-        setFormData({ type: 'bug', title: '', description: '', screenshot_url: '' });
-      }, 2000);
-    } catch (err) {
-      console.error('Error sending feedback:', err);
-      alert('Ошибка отправки. Попробуйте позже.');
-    } finally {
-      setSending(false);
-    }
+    addFeedback({
+      user_id: user?.id,
+      user_name: user?.name,
+      type: formData.type,
+      title: formData.title,
+      description: formData.description,
+      screenshot_url: formData.screenshot_url || undefined
+    });
+    
+    setSuccess(true);
+    setTimeout(() => {
+      setIsOpen(false);
+      setSuccess(false);
+      setFormData({ type: 'bug', title: '', description: '', screenshot_url: '' });
+    }, 2000);
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Конвертируем в base64 для простоты (в реальном проекте лучше загружать в Storage)
     const reader = new FileReader();
     reader.onloadend = () => {
       setFormData({ ...formData, screenshot_url: reader.result as string });
@@ -63,6 +57,7 @@ const FeedbackButton: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
+  // Показывать только для не-админов
   if (!user || user.role === 'admin') return null;
 
   return (
@@ -106,7 +101,7 @@ const FeedbackButton: React.FC = () => {
                       return (
                         <button
                           key={type.value}
-                          onClick={() => setFormData({ ...formData, type: type.value })}
+                          onClick={() => setFormData({ ...formData, type: type.value as any })}
                           className={`flex-1 p-3 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${
                             formData.type === type.value
                               ? 'border-purple-500 bg-purple-50'
@@ -176,18 +171,19 @@ const FeedbackButton: React.FC = () => {
                   )}
                 </div>
 
+                {/* Версия приложения */}
+                <p className="text-xs text-gray-400 text-center">
+                  Версия {APP_VERSION} • Сборка {BUILD_DATE}
+                </p>
+
                 {/* Кнопка отправки */}
                 <button
                   onClick={handleSubmit}
-                  disabled={!formData.title.trim() || sending}
+                  disabled={!formData.title.trim()}
                   className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {sending ? 'Отправка...' : (
-                    <>
-                      <Send className="w-4 h-4" />
-                      Отправить
-                    </>
-                  )}
+                  <Send className="w-4 h-4" />
+                  Отправить
                 </button>
               </div>
             )}

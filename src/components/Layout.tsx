@@ -8,7 +8,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { HelpPanel, HelpButton } from './HelpSystem';
 import { QRScanner } from './QRScanner';
-import FeedbackButton from './FeedbackButton';
+import FeedbackButton, { APP_VERSION, BUILD_DATE } from './FeedbackButton';
 
 const allNavItems = [
   { path: '/', icon: LayoutDashboard, label: 'Дашборд', module: 'dashboard' },
@@ -148,8 +148,9 @@ export const Layout: React.FC = () => {
         </nav>
         
         <div className="p-4 border-t border-slate-200">
-          <div className="text-xs text-slate-400">
-            IBC CellManager v0.02 PWA
+          <div className="text-xs text-slate-400 space-y-1">
+            <div className="font-medium">IBC CellManager</div>
+            <div>v{APP_VERSION} • {BUILD_DATE}</div>
           </div>
         </div>
       </aside>

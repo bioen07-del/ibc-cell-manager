@@ -85,11 +85,15 @@ const DONATION_TYPES: Record<string, { category: 'liquid' | 'solid'; materials: 
 };
 
 export const DonationsPage: React.FC = () => {
-  const { donors, donations, equipment, media, updateMedia, addDonation, updateDonation, deleteDonation, addCulture, cultures, containerTypes } = useApp();
+  const { donors, donations, equipment, media, updateMedia, addDonation, updateDonation, deleteDonation, addCulture, cultures, containerTypes, sops, startSOPExecution, completeSOPExecution } = useApp();
   const safeDonors = donors || [];
   const safeMedia = media || [];
+  const safeSops = sops || [];
   
-  const approvedMedia = (media || []).filter((m: any) => m.status === 'approved' && (m.remainingVolume || m.remaining_ml) > 0 && new Date(m.expiryDate || m.expiry_date) > new Date());
+  // Фильтруем СОПы для выделения клеток (category = isolation или primary_processing)
+  const isolationSops = safeSops.filter(s => s.status === 'active' && (s.category === 'isolation' || s.manipulation_type === 'primary_processing'));
+  
+  const approvedMedia = (media || []).filter((m: any) => m.status === 'approved' && (m.remaining_volume || m.remainingVolume || 0) > 0 && new Date(m.expiry_date || m.expiryDate) > new Date());
   const { canEdit, isAdmin } = useAuth();
   
   const incubators = (equipment || []).filter((e: any) => (e.equipmentType || e.type) === 'incubator' && e.status === 'active');
@@ -130,14 +134,17 @@ export const DonationsPage: React.FC = () => {
     viability: ''
   });
 
+  // Динамически генерируем опции протоколов из СОП
   const ISOLATION_PROTOCOLS = [
-    { value: '', label: 'Не указан' },
-    { value: 'enzymatic', label: 'Ферментативный (коллагеназа)' },
-    { value: 'explant', label: 'Эксплантный метод' },
-    { value: 'mechanical', label: 'Механическая диссоциация' },
-    { value: 'gradient', label: 'Градиентное центрифугирование' },
-    { value: 'immunomagnetic', label: 'Иммуномагнитная сепарация' }
+    { value: '', label: 'Без протокола' },
+    ...isolationSops.map(sop => ({ value: String(sop.id), label: `${sop.code}: ${sop.name}` }))
   ];
+
+  // Состояние для выполнения СОП
+  const [sopExecutionMode, setSopExecutionMode] = useState(false);
+  const [selectedSop, setSelectedSop] = useState<any>(null);
+  const [sopStepResults, setSopStepResults] = useState<Record<number, { completed: boolean; notes: string; data?: any }>>({});
+  const [currentSopStep, setCurrentSopStep] = useState(0);
 
   const addContainer = () => {
     setCultureFormData(prev => ({
@@ -281,25 +288,45 @@ export const DonationsPage: React.FC = () => {
         }
       });
       Object.entries(mediaUsage).forEach(([mId, vol]) => {
-        const usedMedia = safeMedia.find(m => m.id === mId);
+        const usedMedia = safeMedia.find(m => String(m.id) === mId);
         if (usedMedia) {
-          const newRemaining = Math.max(0, usedMedia.remainingVolume - vol);
+          const currentRemaining = usedMedia.remaining_volume || usedMedia.remainingVolume || 0;
+          const newRemaining = Math.max(0, currentRemaining - vol);
           updateMedia(usedMedia.id, { 
-            remainingVolume: newRemaining,
+            remaining_volume: newRemaining,
             status: newRemaining === 0 ? 'exhausted' : usedMedia.status
           });
         }
       });
       
+      // Создаём запись выполнения СОП если выбран протокол
+      let sopExecutionId: number | undefined;
+      if (selectedSop && cultureFormData.isolationProtocol) {
+        const execution = startSOPExecution?.({
+          sop_id: selectedSop.id,
+          executor: 'current_user',
+          status: 'completed',
+          started_at: new Date().toISOString(),
+          completed_at: new Date().toISOString(),
+          step_results: Object.values(sopStepResults).map(r => r.completed),
+          notes: Object.entries(sopStepResults)
+            .filter(([_, r]) => r.notes)
+            .map(([step, r]) => `Этап ${step}: ${r.notes}`)
+            .join('; ')
+        });
+        sopExecutionId = execution?.id;
+      }
+      
       addCulture({
         donationId: selectedDonation.id,
-        donorId: selectedDonation.donorId,
+        donorId: selectedDonation.donorId || selectedDonation.donor_id,
         cellType: cultureFormData.cellType,
         passageNumber: 0,
         containers: cultureFormData.containers.map(c => ({ type: c.type, count: c.count })),
         initialMedia: cultureFormData.containers.map(c => ({ mediaId: c.mediaId, volume: parseFloat(c.volume) || 0 })),
-        isolationProtocolId: cultureFormData.isolationProtocol || undefined,
-        isolationProtocolName: ISOLATION_PROTOCOLS.find(p => p.value === cultureFormData.isolationProtocol)?.label,
+        isolationProtocolId: cultureFormData.isolationProtocol ? parseInt(cultureFormData.isolationProtocol) : undefined,
+        isolationProtocolName: selectedSop?.name || ISOLATION_PROTOCOLS.find(p => p.value === cultureFormData.isolationProtocol)?.label,
+        sopExecutionId: sopExecutionId,
         incubatorId: cultureFormData.incubatorId || undefined,
         cellCount: cultureFormData.cellCount ? parseInt(cultureFormData.cellCount) : undefined,
         viability: cultureFormData.viability ? parseFloat(cultureFormData.viability) : undefined,
@@ -555,8 +582,8 @@ const cellTypeOptions = detectedDonationType ?
         </form>
       </Modal>
 
-      {/* Создание культуры */}
-      <Modal isOpen={isCultureModalOpen} onClose={() => { setIsCultureModalOpen(false); setSelectedDonation(null); }} title="Создание первичной культуры" size="md">
+      {/* Создание культуры с СОП */}
+      <Modal isOpen={isCultureModalOpen} onClose={() => { setIsCultureModalOpen(false); setSelectedDonation(null); setSopExecutionMode(false); setSelectedSop(null); setSopStepResults({}); setCurrentSopStep(0); }} title="Создание первичной культуры" size="lg">
         <form onSubmit={handleCreateCulture} className="space-y-4">
           <div className="p-3 bg-slate-50 rounded-lg">
             <p className="text-sm"><strong>Донация:</strong> {selectedDonation?.id}</p>
@@ -566,7 +593,114 @@ const cellTypeOptions = detectedDonationType ?
 
           <Select label="Тип клеток" value={cultureFormData.cellType} onChange={(e) => setCultureFormData({ ...cultureFormData, cellType: e.target.value })} options={cellTypeOptions} />
 
-          <Select label="Протокол выделения" value={cultureFormData.isolationProtocol} onChange={(e) => setCultureFormData({ ...cultureFormData, isolationProtocol: e.target.value })} options={ISOLATION_PROTOCOLS} />
+          <div>
+            <Select 
+              label="Протокол выделения (СОП)" 
+              value={cultureFormData.isolationProtocol} 
+              onChange={(e) => {
+                const sopId = e.target.value;
+                setCultureFormData({ ...cultureFormData, isolationProtocol: sopId });
+                if (sopId) {
+                  const sop = isolationSops.find(s => String(s.id) === sopId);
+                  setSelectedSop(sop);
+                  setSopStepResults({});
+                  setCurrentSopStep(0);
+                } else {
+                  setSelectedSop(null);
+                  setSopExecutionMode(false);
+                }
+              }} 
+              options={ISOLATION_PROTOCOLS} 
+            />
+            {selectedSop && !sopExecutionMode && (
+              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-medium text-blue-800">{selectedSop.code}: {selectedSop.name}</p>
+                    <p className="text-sm text-blue-600">{selectedSop.description}</p>
+                    <p className="text-xs text-blue-500 mt-1">
+                      {selectedSop.steps?.length || 0} этапов • ~{selectedSop.duration_minutes} мин
+                    </p>
+                  </div>
+                  <Button type="button" size="sm" onClick={() => setSopExecutionMode(true)}>
+                    <FileText className="w-3 h-3 mr-1" /> Работать по СОП
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Пошаговое выполнение СОП */}
+          {sopExecutionMode && selectedSop && (
+            <div className="border rounded-lg overflow-hidden">
+              <div className="bg-purple-600 text-white px-4 py-2 flex justify-between items-center">
+                <span className="font-medium">{selectedSop.code}: Выполнение протокола</span>
+                <button type="button" onClick={() => setSopExecutionMode(false)} className="text-purple-200 hover:text-white text-sm">Свернуть</button>
+              </div>
+              <div className="max-h-80 overflow-y-auto">
+                {selectedSop.steps?.map((step: any, idx: number) => {
+                  const isCompleted = sopStepResults[step.step]?.completed;
+                  const isCurrent = idx === currentSopStep;
+                  return (
+                    <div key={step.step} className={`p-3 border-b last:border-0 ${isCurrent ? 'bg-yellow-50' : isCompleted ? 'bg-green-50' : 'bg-white'}`}>
+                      <div className="flex items-start gap-3">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${isCompleted ? 'bg-green-500 text-white' : isCurrent ? 'bg-yellow-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                          {isCompleted ? '✓' : step.step}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-sm">{step.title}</p>
+                            {step.checkpoint && <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-xs rounded">Контроль</span>}
+                            <span className="text-xs text-slate-400">{step.duration} мин</span>
+                          </div>
+                          <p className="text-xs text-slate-600 mt-0.5">{step.description}</p>
+                          
+                          {step.checkpoint && isCurrent && (
+                            <div className="mt-2 space-y-2">
+                              <input
+                                type="text"
+                                placeholder="Введите данные контрольной точки..."
+                                value={sopStepResults[step.step]?.notes || ''}
+                                onChange={(e) => setSopStepResults(prev => ({
+                                  ...prev,
+                                  [step.step]: { ...prev[step.step], notes: e.target.value }
+                                }))}
+                                className="w-full text-sm p-2 border rounded"
+                              />
+                            </div>
+                          )}
+                          
+                          {isCurrent && (
+                            <Button 
+                              type="button" 
+                              size="sm" 
+                              className="mt-2"
+                              onClick={() => {
+                                setSopStepResults(prev => ({
+                                  ...prev,
+                                  [step.step]: { ...prev[step.step], completed: true }
+                                }));
+                                if (idx < (selectedSop.steps?.length || 0) - 1) {
+                                  setCurrentSopStep(idx + 1);
+                                }
+                              }}
+                            >
+                              Выполнено →
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {selectedSop.safety_notes && (
+                <div className="p-3 bg-amber-50 border-t">
+                  <p className="text-xs text-amber-800">⚠️ {selectedSop.safety_notes}</p>
+                </div>
+              )}
+            </div>
+          )}
 
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -589,7 +723,7 @@ const cellTypeOptions = detectedDonationType ?
                       onChange={(e) => updateContainer(idx, 'mediaId', e.target.value)} 
                       options={[
                         { value: '', label: 'Выберите среду' },
-                        ...approvedMedia.map(m => ({ value: m.id, label: `${m.name} (${m.remainingVolume} ${m.unit})` }))
+                        ...approvedMedia.map(m => ({ value: m.id, label: `${m.name} (${m.remaining_volume || m.remainingVolume || 0} ${m.unit})` }))
                       ]} 
                     />
                     <Input 
@@ -607,10 +741,13 @@ const cellTypeOptions = detectedDonationType ?
 
           <Select label="Инкубатор" value={cultureFormData.incubatorId} onChange={(e) => setCultureFormData({ ...cultureFormData, incubatorId: e.target.value })} options={[{ value: '', label: 'Выберите инкубатор' }, ...incubators.map(eq => ({ value: eq.id, label: `${eq.name} (${eq.id})` }))]} />
 
-          <p className="text-sm text-slate-500">Примечание: Для первичной культуры (P0) количество клеток обычно определяется после первого пассажа.</p>
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="Количество клеток" type="number" value={cultureFormData.cellCount} onChange={(e) => setCultureFormData({ ...cultureFormData, cellCount: e.target.value })} placeholder="опционально" />
+            <Input label="Жизнеспособность (%)" type="number" step="0.1" min="0" max="100" value={cultureFormData.viability} onChange={(e) => setCultureFormData({ ...cultureFormData, viability: e.target.value })} placeholder="опционально" />
+          </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button type="button" variant="secondary" onClick={() => { setIsCultureModalOpen(false); setSelectedDonation(null); }}>Отмена</Button>
+            <Button type="button" variant="secondary" onClick={() => { setIsCultureModalOpen(false); setSelectedDonation(null); setSopExecutionMode(false); setSelectedSop(null); }}>Отмена</Button>
             <Button type="submit" variant="success"><FlaskConical className="w-4 h-4" /> Создать культуру</Button>
           </div>
         </form>
